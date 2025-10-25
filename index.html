@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8" />
@@ -382,4 +382,79 @@ function exportDailyExcel(){
 
 // Traders
 function refreshTraderSelects(){ const v=getTraders().list; [p_trader,pay_trader,s_trader,expenseTrader].forEach(sel=>{ if(!sel) return; sel.innerHTML=v.length? v.map(o=>`<option value="${o.id}">${o.name}</option>`).join(''):'<option value="">— لا يوجد تُجّار —</option>'; }); }
-function renderTradersList(){ const v=getTraders().list; tradersList.innerHTML=v.length? v.map(o=>`<div
+function renderTradersList(){ const v=getTraders().list; tradersList.innerHTML=v.length? v.map(o=>`<div class="item"><div class="meta"><b>${o.name}</b> ${o.phone?`— ${o.phone}`:''} <span class="hint">| الرصيد: ${o.balance||0}</span></div><div><button class="btn btn-danger" onclick="deleteTrader('${o.id}')">حذف</button></div></div>`).join(''):'<div class="hint">لا يوجد تُجّار</div>'; }
+function addTrader(){ const name=(t_name.value||'').trim(),phone=(t_phone.value||'').trim(); if(!name){alert('أدخل اسم التاجر');return;} const data=getTraders(); data.list.push({id:uid(),name,phone,balance:0,ledger:[]}); saveTraders(data); t_name.value=''; t_phone.value=''; renderTradersUI(); }
+function recomputeTrader(t){ let bal=0; (t.ledger||[]).forEach(e=>{ if(e.type==='purchase'){ const remain=(e.amount||0)-((e.pay_shop_cash||0)+(e.pay_shop_bank||0)+(e.pay_owner_cash||0)); bal+=remain; } else if(e.type==='payment'){ bal-=(e.amount||0); if(bal<0) bal=0; } e.balance_after=bal; }); t.balance=bal; }
+function deleteTrader(id){ const T=getTraders(); const i=T.list.findIndex(x=>x.id===id); if(i>-1 && confirm('حذف هذا التاجر وجميع حركاته؟')){ T.list.splice(i,1); saveTraders(T); renderTradersUI(); } }
+function deleteTraderEntry(tid,eid){ const T=getTraders(); const t=T.list.find(x=>x.id===tid); if(!t) return; const i=(t.ledger||[]).findIndex(x=>x.id===eid); if(i>-1 && confirm('حذف هذه الحركة؟')){ t.ledger.splice(i,1); recomputeTrader(t); saveTraders(T); renderTradersUI(); renderTraderStatement(); } }
+function renderTraderStatement(){ const tid=s_trader.value; const data=getTraders(); const t=data.list.find(x=>x.id===tid); if(!t){ traderStatement.innerHTML='<div class="hint">اختر تاجر</div>'; return; } let rows=(t.ledger||[]).map(e=>`<tr><td>${e.date}</td><td>${e.type==='purchase'?'شراء':'سداد'}</td><td>${e.note||''}</td><td>${e.amount}</td><td>${e.pay_shop_cash||0}</td><td>${e.pay_shop_bank||0}</td><td>${e.pay_owner_cash||0}</td><td>${e.balance_after||''}</td><td class="no-print"><button class="btn btn-danger" onclick="deleteTraderEntry('${t.id}','${e.id}')">حذف</button></td></tr>`).join(''); if(!rows) rows='<tr><td colspan="9">لا يوجد حركات</td></tr>'; traderStatement.innerHTML=`<div class="hint">الرصيد الحالي: <b>${t.balance||0}</b></div><table id="traderStatementTable"><thead><tr><th>التاريخ</th><th>النوع</th><th>ملاحظة</th><th>القيمة</th><th>مدفوع كاش</th><th>مدفوع بنك</th><th>من المالك</th><th>الرصيد بعد</th><th class="no-print">حذف</th></tr></thead><tbody>${rows}</tbody></table>`; }
+function purchaseFromTrader(){
+  const tid=p_trader.value,total=parseFloat(p_total.value)||0,sc=parseFloat(p_from_shop_cash.value)||0,sb=parseFloat(p_from_shop_bank.value)||0,oc=parseFloat(p_from_owner_cash.value)||0,n=(p_note.value||'').trim();
+  if(!tid){alert('اختر التاجر');return;} if(total<=0){alert('أدخل قيمة فاتورة صحيحة');return;} if(sc+sb+oc>total){alert('مجموع الدفعات أكبر من قيمة الفاتورة');return;}
+  const T=getTraders(); const t=T.list.find(x=>x.id===tid); (t.ledger||(t.ledger=[])).push({id:uid(),type:'purchase',date:new Date().toLocaleDateString(),amount:total,pay_shop_cash:sc,pay_shop_bank:sb,pay_owner_cash:oc,note:n}); recomputeTrader(t); saveTraders(T);
+  if(sc>0){ const d=getData(); d.expenses.push({id:uid(),date:new Date().toLocaleDateString(),desc:`شراء بضاعة من ${t.name}`,type:'كاش',amount:sc,note:'دفعة من كاش المحل'}); saveData(d); }
+  if(sb>0){ const d=getData(); d.expenses.push({id:uid(),date:new Date().toLocaleDateString(),desc:`شراء بضاعة من ${t.name}`,type:'بنك',amount:sb,note:'دفعة من بنك المحل'}); saveData(d); }
+  if(oc>0){ const l=getOwnerLedger(); l.push({id:uid(),kind:'use',date:new Date().toLocaleDateString(),shop:'-',amount:oc,note:`دفعة تاجر (${t.name}) من صندوق المالك`,batch_id:null}); saveOwnerLedger(l); }
+  p_total.value=''; p_from_shop_cash.value=''; p_from_shop_bank.value=''; p_from_owner_cash.value=''; p_note.value=''; renderLists(); alert('تم تسجيل شراء البضاعة.');
+}
+function payTrader(){
+  const tid=pay_trader.value,src=pay_source.value,amt=parseFloat(pay_amount.value)||0,n=(pay_note.value||'').trim(); if(!tid){alert('اختر التاجر');return;} if(amt<=0){alert('أدخل مبلغ صحيح');return;}
+  const T=getTraders(); const t=T.list.find(x=>x.id===tid); let sc=0,sb=0,oc=0; if(src==='shop_cash') sc=amt; if(src==='shop_bank') sb=amt; if(src==='owner_cash') oc=amt;
+  (t.ledger||(t.ledger=[])).push({id:uid(),type:'payment',date:new Date().toLocaleDateString(),amount:amt,pay_shop_cash:sc,pay_shop_bank:sb,pay_owner_cash:oc,note:n}); recomputeTrader(t); saveTraders(T);
+  if(sc>0){ const d=getData(); d.expenses.push({id:uid(),date:new Date().toLocaleDateString(),desc:`سداد تاجر ${t.name}`,type:'كاش',amount:sc,note:n||'سداد من كاش المحل'}); saveData(d); }
+  if(sb>0){ const d=getData(); d.expenses.push({id:uid(),date:new Date().toLocaleDateString(),desc:`سداد تاجر ${t.name}`,type:'بنك',amount:sb,note:n||'سداد من بنك المحل'}); saveData(d); }
+  if(oc>0){ const l=getOwnerLedger(); l.push({id:uid(),kind:'use',date:new Date().toLocaleDateString(),shop:'-',amount:oc,note:n||`سداد تاجر (${t.name}) من صندوق المالك`,batch_id:null}); saveOwnerLedger(l); }
+  pay_amount.value=''; pay_note.value=''; renderLists(); alert('تم تسجيل السداد.');
+}
+
+// Loans
+function refreshLoanSelects(){ const v=getLoans().list; [loan_person,repay_person,l_stmt_person,expenseLoanPerson].forEach(sel=>{ if(!sel) return; sel.innerHTML=v.length? v.map(o=>`<option value="${o.id}">${o.name}</option>`).join(''):'<option value="">— لا يوجد مُسلفون —</option>'; }); }
+function renderLendersList(){ const v=getLoans().list; lendersList.innerHTML=v.length? v.map(o=>{ const adv=o.advanced||0,used=o.used||0,rep=o.repaid||0, stillOnUs=adv-rep, remain=Math.max(0,adv-used); return `<div class="item"><div class="meta"><b>${o.name}</b> ${o.phone?`— ${o.phone}`:''}</div><div><button class="btn btn-danger" onclick="deleteLender('${o.id}')">حذف</button></div></div><div class="hint">علينا الآن: <b>${stillOnUs}</b> — المتبقي غير مستخدم: <b>${remain}</b></div>`; }).join(''):'<div class="hint">لا يوجد مُسلفون</div>'; }
+function renderLenderStatement(){ const id=(l_stmt_person||{}).value; const D=getLoans(); const L=D.list.find(x=>x.id===id); if(!L){ lenderStatement.innerHTML='<div class="hint">اختر مُسلف</div>'; return; } let rows=(L.ledger||[]).map(e=>`<tr><td>${e.date}</td><td>${e.type==='advance'?'سلفة':e.type==='repay'?'سداد':'استخدام'}</td><td>${e.note||''}</td><td>${e.amount}</td><td class="no-print"><button class="btn btn-danger" onclick="deleteLenderEntry('${L.id}','${e.id}')">حذف</button></td></tr>`).join(''); if(!rows) rows='<tr><td colspan="5">لا يوجد حركات</td></tr>'; const adv=L.advanced||0,used=L.used||0,rep=L.repaid||0, stillOnUs=adv-rep, remain=Math.max(0,adv-used); lenderStatement.innerHTML=`<div class="hint">علينا الآن: <b>${stillOnUs}</b> — المتبقي غير مستخدم: <b>${remain}</b></div><table id="lenderStatementTable"><thead><tr><th>التاريخ</th><th>النوع</th><th>ملاحظة</th><th>المبلغ</th><th class="no-print">حذف</th></tr></thead><tbody>${rows}</tbody></table>`; }
+function recomputeLender(L){ let adv=0,used=0,rep=0; (L.ledger||[]).forEach(e=>{ if(e.type==='advance') adv+=(e.amount||0); else if(e.type==='use') used+=(e.amount||0); else if(e.type==='repay') rep+=(e.amount||0); }); L.advanced=adv; L.used=used; L.repaid=rep; }
+function addLender(){ const name=(l_name.value||'').trim(),phone=(l_phone.value||'').trim(); if(!name){alert('أدخل اسم المُسلف');return;} const D=getLoans(); D.list.push({id:uid(),name,phone,ledger:[],advanced:0,used:0,repaid:0}); saveLoans(D); l_name.value=''; l_phone.value=''; renderLoansUI(); }
+function deleteLender(id){ const D=getLoans(); const i=D.list.findIndex(x=>x.id===id); if(i>-1 && confirm('حذف هذا المُسلف وجميع حركاته؟')){ D.list.splice(i,1); saveLoans(D); renderLoansUI(); } }
+function deleteLenderEntry(lid,eid){ const D=getLoans(); const L=D.list.find(x=>x.id===lid); if(!L) return; const i=(L.ledger||[]).findIndex(x=>x.id===eid); if(i>-1 && confirm('حذف هذه الحركة؟')){ L.ledger.splice(i,1); recomputeLender(L); saveLoans(D); renderLoansUI(); renderLenderStatement(); } }
+function takeLoan(){ const id=(loan_person||{}).value,amt=parseFloat(loan_amount.value)||0,n=(loan_note.value||'').trim(); if(!id||!amt){alert('أدخل مُسلف ومبلغ');return;} const D=getLoans(); const L=D.list.find(x=>x.id===id); (L.ledger||(L.ledger=[])).push({id:uid(),type:'advance',date:new Date().toLocaleDateString(),amount:amt,note:n}); recomputeLender(L); saveLoans(D); loan_amount.value=''; loan_note.value=''; renderLoansUI(); alert('تم تسجيل السلفة.'); }
+function repayLoan(){ const id=(repay_person||{}).value,amt=parseFloat(repay_amount.value)||0,n=(repay_note.value||'').trim(); if(!id||!amt){alert('أدخل مُسلف ومبلغ');return;} const D=getLoans(); const L=D.list.find(x=>x.id===id); (L.ledger||(L.ledger=[])).push({id:uid(),type:'repay',date:new Date().toLocaleDateString(),amount:amt,note:n}); recomputeLender(L); saveLoans(D); repay_amount.value=''; repay_note.value=''; renderLoansUI(); alert('تم تسجيل السداد.'); }
+function renderTradersUI(){ refreshTraderSelects(); renderTradersList(); renderTraderStatement(); }
+function renderLoansUI(){ refreshLoanSelects(); renderLendersList(); renderLenderStatement(); }
+
+// Aggregate
+function generateAggregate(){
+  const from=f_from.value,to=f_to.value,mode=agg_mode.value; if(!from||!to){alert('اختر الفترة (من/إلى)');return;}
+  const shops=['store1','store2','store3'];
+  const rangeOK=dstr=>{ const d=new Date(dstr.split('/').reverse().join('-')); return d>=new Date(from)&&d<=new Date(to); };
+  let html='';
+  if(mode==='all'){
+    let tot={cs:0,bs:0,ce:0,be:0,net:0};
+    shops.forEach(st=>{ const d=getData(st); const cs=d.sales.filter(x=>x.type==='كاش'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const bs=d.sales.filter(x=>x.type==='بنك'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const ce=d.expenses.filter(x=>x.type==='كاش'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const be=d.expenses.filter(x=>x.type==='بنك'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); tot.cs+=cs; tot.bs+=bs; tot.ce+=ce; tot.be+=be; });
+    tot.net=tot.cs+tot.bs-(tot.ce+tot.be);
+    html+=`<table id="aggTable"><thead><tr><th>المؤشر</th><th>القيمة</th></tr></thead><tbody>
+           <tr><td>مبيعات كاش</td><td>${tot.cs}</td></tr>
+           <tr><td>مبيعات بنك</td><td>${tot.bs}</td></tr>
+           <tr><td>مصروفات كاش</td><td>${tot.ce}</td></tr>
+           <tr><td>مصروفات بنك</td><td>${tot.be}</td></tr>
+           <tr><th>الصافي</th><th>${tot.net}</th></tr></tbody></table>`;
+  }else{
+    html+=`<table id="aggTable"><thead><tr><th>المحل</th><th>مبيعات كاش</th><th>مبيعات بنك</th><th>مصروفات كاش</th><th>مصروفات بنك</th><th>صافي</th></tr></thead><tbody>`;
+    shops.forEach(st=>{ const d=getData(st); const cs=d.sales.filter(x=>x.type==='كاش'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const bs=d.sales.filter(x=>x.type==='بنك'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const ce=d.expenses.filter(x=>x.type==='كاش'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const be=d.expenses.filter(x=>x.type==='بنك'&&rangeOK(x.date)).reduce((a,b)=>a+b.amount,0); const net=cs+bs-(ce+be); html+=`<tr><td>${labelOf(st)}</td><td>${cs}</td><td>${bs}</td><td>${ce}</td><td>${be}</td><td>${net}</td></tr>`; });
+    html+='</tbody></table>';
+  }
+  aggregateReport.innerHTML=`<div class="hint">الفترة: <b>${from}</b> → <b>${to}</b></div>`+html;
+}
+
+// Excel export
+function exportTableAsExcel(tableId, name){ const t=document.getElementById(tableId); if(!t){alert('اعرض التقرير أولاً');return;} const html=`<html><head><meta charset="utf-8"></head><body>${t.outerHTML}</body></html>`; downloadExcelHTML(html, name+'.xls'); }
+function downloadExcelHTML(html, filename){ const blob=new Blob([html],{type:'application/vnd.ms-excel'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},500); }
+
+// Print
+function printSection(id){ const el=document.getElementById(id); if(!el){alert('اعرض التقرير أولاً');return;} const h=document.head.innerHTML; const w=window.open('','_blank'); w.document.write(`<html><head>${h}</head><body>${el.outerHTML}</body></html>`); w.document.close(); w.focus(); w.print(); w.close(); }
+
+// UI boot
+function showTab(name){ document.querySelectorAll('[data-tab]').forEach(s=>s.style.display=(s.getAttribute('data-tab')===name)?'block':'none'); const keys=['input','daily','traders','loans','agg']; document.querySelectorAll('.tabs .tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===name)); if(name==='input') renderLists(); if(name==='traders') renderTradersUI(); if(name==='loans') renderLoansUI(); }
+function renderLists(){ const d=getData(); const rs=d.sales.slice(-20).reverse(), re=d.expenses.slice(-20).reverse(); recentSales.innerHTML=rs.map(v=>`<div class="item"><div class="meta">${v.date} — ${v.type}${v.note?` — <i>${v.note}</i>`:''}</div><div><button class="btn btn-danger" onclick="deleteSale('${v.id}')">حذف</button></div><b>${v.amount}</b></div>`).join('')||'<div class="hint">لا توجد مبيعات بعد</div>'; recentExpenses.innerHTML=re.map(v=>`<div class="item"><div class="meta">${v.date} — ${v.type} — ${v.desc}${v.note?` — <i>${v.note}</i>`:''}</div><div><button class="btn btn-danger" onclick="deleteExpense('${v.id}')">حذف</button></div><b>${v.amount}</b></div>`).join('')||'<div class="hint">لا توجد مصاريف بعد</div>'; }
+document.addEventListener('DOMContentLoaded',()=>{ const today=new Date().toISOString().slice(0,10); if(r_date) r_date.value=today; if(f_from) f_from.value=today.slice(0,8)+'01'; if(f_to) f_to.value=today; showTab('input'); renderLists(); });
+</script>
+</body>
+</html>
