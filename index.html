@@ -1,41 +1,385 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام محاسبة - النسخة الزرقاء v23</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <style>
-    body {
-      font-family: "Cairo", sans-serif;
-      background-color: #eaf1ff;
-      color: #222;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 { color: #0055cc; }
-    button {
-      padding: 10px 20px;
-      margin: 10px;
-      border: none;
-      border-radius: 10px;
-      background-color: #2878ff;
-      color: #fff;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #1765e8;
-      cursor: pointer;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>نظام محاسبة — النسخة الزرقاء v23</title>
+<link rel="manifest" href="./manifest.webmanifest"/>
+<meta name="theme-color" content="#2878ff"/>
+<style>
+:root{--primary:#2878ff;--success:#1a9d5c;--danger:#dc3545;--muted:#6c757d}
+*{box-sizing:border-box}
+body{font-family:Tahoma,Arial,sans-serif;margin:0;background:#eaf1ff;color:#111}
+header{position:sticky;top:0;background:var(--primary);color:#fff;padding:10px 12px;z-index:5}
+header h1{margin:0 0 4px;font-size:18px}
+header .sub{font-size:13px;opacity:.95}
+main{padding:12px 12px 120px;max-width:980px;margin:auto}
+.card{background:#fff;border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+label{font-size:14px;color:#333}
+input,select,textarea,button{width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;font-size:16px}
+input.slim, .slim{height:42px;padding:10px 12px}
+button{border:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:14px;padding:10px 14px;font-size:14px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-outline{background:#fff;border:1px solid #e5e7eb;color:#111}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.col{flex:1;min-width:180px}
+.hint{font-size:12px;color:#555;margin-top:6px}
+.list{margin-top:8px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
+.item:last-child{border-bottom:none}
+.item .meta{flex:1}
+.kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.kpi .box{background:#f1f6ff;border:1px solid #e5edff;border-radius:12px;padding:10px;text-align:center}
+.kpi .box b{display:block;font-size:16px}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #eee;display:flex}
+.tab{flex:1;text-align:center}
+.tab button{width:100%;border:none;background:#fff;padding:12px 0}
+.tab.active{background:#f8faff}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{border:1px solid #eee;padding:8px;text-align:center;font-size:14px}
+th{background:#f9fbff}
+.subtle{background:#fafbff;border:1px solid #eef1ff;border-radius:12px;padding:10px;margin-top:8px}
+details summary{cursor:pointer;font-weight:bold}
+.no-print{}
+@media print{ header,nav.tabs,.no-print{display:none!important} body{background:#fff} .card{box-shadow:none;border:none} }
+</style>
 </head>
 <body>
-  <h1>💼 نظام محاسبة - النسخة الزرقاء v23</h1>
-  <p>مرحبًا بك في النظام المحاسبي المطوّر لإدارة المبيعات والمصاريف.</p>
-  <button onclick="alert('إضافة عملية بيع')">إضافة بيع</button>
-  <button onclick="alert('عرض التقرير اليومي')">التقرير اليومي</button>
-  <button onclick="alert('تقرير المجمّع')">تقرير مجمّع</button>
-</body>
-</html>
+<header class="no-print">
+  <h1>نظام محاسبة — النسخة الزرقاء v23</h1>
+  <div class="sub">المالك: <b>عبد الله أبو عوض</b></div>
+</header>
+
+<main>
+
+  <div class="card no-print">
+    <div class="row">
+      <div class="col">
+        <label>المحل</label>
+        <select id="storeSelect" onchange="changeStore()">
+          <option value="store1">روان بيبي</option>
+          <option value="store2">جنتل بيبي عبود</option>
+          <option value="store3">بسطة</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- إدخال المبيعات -->
+  <section class="card" data-tab="input">
+    <h3>تسجيل المبيعات</h3>
+    <div class="row">
+      <div class="col"><input type="number" id="saleAmount" placeholder="المبلغ"></div>
+      <div class="col">
+        <select id="saleType">
+          <option value="كاش">كاش</option>
+          <option value="بنك">بنك</option>
+        </select>
+      </div>
+    </div>
+    <input type="text" id="saleNote" class="slim" placeholder="ملاحظات (صنف/اسم المشتري/جوال) — اختياري">
+    <div style="margin-top:8px"><button class="btn btn-success" onclick="addSale()">إضافة بيع</button></div>
+    <div class="list" id="recentSales"></div>
+  </section>
+
+  <!-- إدخال المصاريف -->
+  <section class="card" data-tab="input">
+    <h3>تسجيل المصاريف</h3>
+    <div class="row">
+      <div class="col"><input type="text" id="expenseDesc" placeholder="نوع المصروف"></div>
+      <div class="col"><input type="number" id="expenseAmount" placeholder="المبلغ"></div>
+      <div class="col">
+        <select id="expenseType">
+          <option value="كاش">كاش</option>
+          <option value="بنك">بنك</option>
+        </select>
+      </div>
+    </div>
+    <input type="text" id="expenseNote" class="slim" placeholder="ملاحظات (اختياري)">
+    <div class="subtle">
+      <div class="row">
+        <div class="col"><input type="checkbox" id="expenseIsTrader" onchange="toggleExpenseTrader(this.checked)"> <label for="expenseIsTrader"><b>اعتبارها سداد لتاجر</b></label></div>
+      </div>
+      <div class="row" id="expenseTraderRow" style="display:none">
+        <div class="col">
+          <label>التاجر</label>
+          <select id="expenseTrader"></select>
+        </div>
+        <div class="col"><input type="text" id="expenseTraderNote" class="slim" placeholder="ملاحظة (اختياري)"></div>
+      </div>
+      <div class="hint">عند التفعيل، يُخصم نفس مبلغ المصروف من رصيد التاجر تلقائيًا (حسب نوع الدفع).</div>
+    </div>
+
+    <div class="subtle">
+      <div class="row">
+        <div class="col"><input type="checkbox" id="expenseIsLoan" onchange="toggleExpenseLoan(this.checked)"> <label for="expenseIsLoan"><b>اعتبارها دفعة من سلفة</b> (كاش فقط)</label></div>
+      </div>
+      <div class="row" id="expenseLoanRow" style="display:none">
+        <div class="col">
+          <label>المُسلف</label>
+          <select id="expenseLoanPerson"></select>
+        </div>
+        <div class="col"><input type="text" id="expenseLoanNote" class="slim" placeholder="ملاحظة (اختياري)"></div>
+      </div>
+      <div class="hint">يُخصم المبلغ من رصيد المُسلف المختار ويُسجل المصروف في تقارير اليوم.</div>
+    </div>
+
+    <div style="margin-top:8px"><button class="btn btn-success" onclick="addExpense()">إضافة مصروف</button></div>
+    <div class="list" id="recentExpenses"></div>
+  </section>
+
+  <!-- التقرير اليومي -->
+  <section class="card" data-tab="daily">
+    <h3>التقرير اليومي (المحل الحالي)</h3>
+    <div class="row no-print">
+      <div class="col"><input type="date" id="r_date"></div>
+      <div class="col"><button class="btn btn-primary" onclick="generateReport()">عرض التقرير</button></div>
+      <div class="col"><button class="btn btn-outline" onclick="printSection('dailyReportWrap')">🖨️ طباعة / PDF</button></div>
+      <div class="col"><button class="btn btn-outline" onclick="exportDailyExcel()">📊 Excel</button></div>
+    </div>
+    <div id="dailyReportWrap">
+      <div id="dailyKPI" class="kpi" style="display:none">
+        <div class="box"><b id="k_cash_sales">0</b><span>مبيعات كاش</span></div>
+        <div class="box"><b id="k_bank_sales">0</b><span>مبيعات بنك</span></div>
+        <div class="box"><b id="k_cash_exp">0</b><span>مصروفات كاش</span></div>
+        <div class="box"><b id="k_bank_exp">0</b><span>مصروفات بنك</span></div>
+      </div>
+      <div id="dailyReport"></div>
+    </div>
+  </section>
+
+  <!-- التُجّار -->
+  <section class="card" data-tab="traders">
+    <h3>التُجّار</h3>
+
+    <div class="subtle no-print">
+      <h4>إضافة تاجر</h4>
+      <div class="row">
+        <div class="col"><input type="text" id="t_name" placeholder="اسم التاجر"></div>
+        <div class="col"><input type="text" id="t_phone" placeholder="جوال (اختياري)"></div>
+      </div>
+      <button class="btn btn-success" onclick="addTrader()">➕ إضافة</button>
+    </div>
+
+    <div class="subtle no-print">
+      <h4>شراء بضاعة</h4>
+      <div class="row">
+        <div class="col"><label>التاجر</label><select id="p_trader"></select></div>
+        <div class="col"><input type="number" id="p_total" placeholder="قيمة الفاتورة"></div>
+      </div>
+      <div class="row">
+        <div class="col"><input type="number" id="p_from_shop_cash" placeholder="دفعة من كاش المحل"></div>
+        <div class="col"><input type="number" id="p_from_shop_bank" placeholder="دفعة من بنك المحل"></div>
+      </div>
+      <div class="row">
+        <div class="col"><input type="number" id="p_from_owner_cash" placeholder="دفعة من صندوق المالك"></div>
+      </div>
+      <input type="text" id="p_note" class="slim" placeholder="ملاحظات (رقم فاتورة/تفاصيل) — اختياري">
+      <button class="btn btn-primary" onclick="purchaseFromTrader()">🧾 تسجيل شراء</button>
+      <div class="hint">المتبقي بعد الدفعات يُسجل دينًا على التاجر.</div>
+    </div>
+
+    <div class="subtle no-print">
+      <h4>سداد تاجر</h4>
+      <div class="row">
+        <div class="col"><label>التاجر</label><select id="pay_trader"></select></div>
+        <div class="col">
+          <select id="pay_source">
+            <option value="shop_cash">من كاش المحل</option>
+            <option value="shop_bank">من بنك المحل</option>
+            <option value="owner_cash">من صندوق المالك</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col"><input type="number" id="pay_amount" placeholder="المبلغ"></div>
+        <div class="col"><input type="text" id="pay_note" class="slim" placeholder="ملاحظات (اختياري)"></div>
+      </div>
+      <button class="btn btn-outline" onclick="payTrader()">💸 تسجيل سداد</button>
+    </div>
+
+    <div class="subtle">
+      <h4>كشف حساب تاجر</h4>
+      <div class="row no-print">
+        <div class="col"><select id="s_trader" onchange="renderTraderStatement()"></select></div>
+        <div class="col"><button class="btn btn-outline" onclick="printSection('traderStatement')">🖨️ طباعة / PDF</button></div>
+        <div class="col"><button class="btn btn-outline" onclick="exportTableAsExcel('traderStatementTable','كشف-تاجر')">📊 Excel</button></div>
+      </div>
+      <div id="traderStatement"></div>
+    </div>
+
+    <div class="subtle">
+      <h4>قائمة التُجار وأرصدتهم</h4>
+      <div id="tradersList"></div>
+    </div>
+  </section>
+
+  <!-- السُلف -->
+  <section class="card" data-tab="loans">
+    <h3>السُلف</h3>
+
+    <div class="subtle no-print">
+      <h4>إضافة مُسلف</h4>
+      <div class="row">
+        <div class="col"><input type="text" id="l_name" placeholder="اسم المُسلف"></div>
+        <div class="col"><input type="text" id="l_phone" placeholder="جوال (اختياري)"></div>
+      </div>
+      <button class="btn btn-success" onclick="addLender()">➕ إضافة</button>
+    </div>
+
+    <div class="subtle no-print">
+      <h4>أخذ سلفة (كاش)</h4>
+      <div class="row">
+        <div class="col"><label>المُسلف</label><select id="loan_person"></select></div>
+        <div class="col"><input type="number" id="loan_amount" placeholder="المبلغ"></div>
+      </div>
+      <input type="text" id="loan_note" class="slim" placeholder="ملاحظات (اختياري)">
+      <button class="btn btn-primary" onclick="takeLoan()">💵 تسجيل سلفة</button>
+    </div>
+
+    <div class="subtle no-print">
+      <h4>سداد سلفة</h4>
+      <div class="row">
+        <div class="col"><label>المُسلف</label><select id="repay_person"></select></div>
+        <div class="col"><input type="number" id="repay_amount" placeholder="المبلغ"></div>
+      </div>
+      <input type="text" id="repay_note" class="slim" placeholder="ملاحظات (اختياري)">
+      <button class="btn btn-outline" onclick="repayLoan()">↩️ تسجيل سداد</button>
+    </div>
+
+    <div class="subtle">
+      <h4>قائمة المُسلفين وأرصدتهم</h4>
+      <div id="lendersList"></div>
+    </div>
+
+    <div class="subtle">
+      <h4>كشف حساب مُسلف</h4>
+      <div class="row no-print">
+        <div class="col"><select id="l_stmt_person" onchange="renderLenderStatement()"></select></div>
+        <div class="col"><button class="btn btn-outline" onclick="printSection('lenderStatement')">🖨️ طباعة / PDF</button></div>
+        <div class="col"><button class="btn btn-outline" onclick="exportTableAsExcel('lenderStatementTable','كشف-مسلف')">📊 Excel</button></div>
+      </div>
+      <div id="lenderStatement"></div>
+    </div>
+  </section>
+
+  <!-- تقرير مجمّع -->
+  <section class="card" data-tab="agg">
+    <h3>تقرير مجمّع (حسب فترة)</h3>
+    <div class="row no-print">
+      <div class="col"><label>من</label><input type="date" id="f_from"></div>
+      <div class="col"><label>إلى</label><input type="date" id="f_to"></div>
+      <div class="col">
+        <label>النطاق</label>
+        <select id="agg_mode">
+          <option value="all">مجمّع لكل المحلات</option>
+          <option value="per">منفصل لكل محل</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:8px" class="no-print">
+      <button class="btn btn-primary" onclick="generateAggregate()">عرض التقرير</button>
+      <button class="btn btn-outline" onclick="printSection('aggregateReport')">🖨️ طباعة / PDF</button>
+      <button class="btn btn-outline" onclick="exportTableAsExcel('aggTable','تقرير-فترة')">📊 Excel</button>
+    </div>
+    <div id="aggregateReport"></div>
+  </section>
+
+</main>
+
+<nav class="tabs no-print">
+  <div class="tab active"><button onclick="showTab('input')">إدخال</button></div>
+  <div class="tab"><button onclick="showTab('daily')">يومي</button></div>
+  <div class="tab"><button onclick="showTab('traders')">تُجّار</button></div>
+  <div class="tab"><button onclick="showTab('loans')">سُلف</button></div>
+  <div class="tab"><button onclick="showTab('agg')">مجمّع</button></div>
+</nav>
+
+<script>
+// PWA
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js')); }
+
+// Stores & helpers
+let currentStore='store1';
+function labelOf(id){ return id==='store1'?'روان بيبي':id==='store2'?'جنتل بيبي عبود':'بسطة'; }
+function changeStore(){ currentStore=document.getElementById('storeSelect').value; renderLists(); }
+function getData(store=currentStore){ return JSON.parse(localStorage.getItem(store)||'{"sales":[],"expenses":[]}'); }
+function saveData(d){ localStorage.setItem(currentStore, JSON.stringify(d)); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// Traders & Loans storage
+function getTraders(){ return JSON.parse(localStorage.getItem('traders')||'{"list":[]}'); }
+function saveTraders(v){ localStorage.setItem('traders', JSON.stringify(v)); }
+function getLoans(){ return JSON.parse(localStorage.getItem('loans')||'{"list":[]}'); }
+function saveLoans(v){ localStorage.setItem('loans', JSON.stringify(v)); }
+function getOwnerLedger(){ return JSON.parse(localStorage.getItem('owner_cash_ledger')||'[]'); }
+function saveOwnerLedger(a){ localStorage.setItem('owner_cash_ledger', JSON.stringify(a)); }
+
+// Delete
+function deleteSale(id){ const d=getData(); const i=d.sales.findIndex(x=>x.id===id); if(i>-1 && confirm('حذف عملية البيع؟')){ d.sales.splice(i,1); saveData(d); renderLists(); }}
+function deleteExpense(id){ const d=getData(); const i=d.expenses.findIndex(x=>x.id===id); if(i>-1 && confirm('حذف عملية المصروف؟')){ d.expenses.splice(i,1); saveData(d); renderLists(); }}
+
+// Sales
+function addSale(){ const a=parseFloat(saleAmount.value),t=saleType.value,n=(saleNote.value||'').trim(); if(!a){alert('أدخل مبلغ صالح');return;} const d=getData(); d.sales.push({id:uid(),date:new Date().toLocaleDateString(),type:t,amount:a,note:n}); saveData(d); saleAmount.value=''; saleNote.value=''; renderLists(); }
+
+// Expenses
+function toggleExpenseTrader(on){ document.getElementById('expenseTraderRow').style.display = on?'flex':'none'; if(on) refreshTraderSelects(); }
+function toggleExpenseLoan(on){ document.getElementById('expenseLoanRow').style.display = on?'flex':'none'; if(on) refreshLoanSelects(); }
+function addExpense(){
+  const desc=expenseDesc.value,a=parseFloat(expenseAmount.value),t=expenseType.value,n=(expenseNote.value||'').trim();
+  if(!desc||!a){alert('أدخل تفاصيل صحيحة');return;}
+  const d=getData(); d.expenses.push({id:uid(),date:new Date().toLocaleDateString(),desc:desc,type:t,amount:a,note:n}); saveData(d);
+
+  if(document.getElementById('expenseIsTrader').checked){
+    const tid=(expenseTrader||{}).value; const T=getTraders(); const tr=T.list.find(x=>x.id===tid);
+    if(tr){ const payShopCash=(t==='كاش')?a:0, payShopBank=(t==='بنك')?a:0;
+      (tr.ledger||(tr.ledger=[])).push({id:uid(),type:'payment',date:new Date().toLocaleDateString(),amount:a,pay_shop_cash:payShopCash,pay_shop_bank:payShopBank,pay_owner_cash:0,note:(expenseTraderNote.value||'سداد تاجر عبر المصاريف')+(n?` — (${n})`:'')});
+      recomputeTrader(tr); saveTraders(T);
+    }
+  }
+  if(document.getElementById('expenseIsLoan').checked){
+    const lid=(expenseLoanPerson||{}).value; const Ls=getLoans(); const L=Ls.list.find(x=>x.id===lid);
+    if(L){ (L.ledger||(L.ledger=[])).push({id:uid(),type:'use',date:new Date().toLocaleDateString(),amount:a,note:(expenseLoanNote.value||'استخدام سلفة للمصروف')+(n?` — (${n})`:'')}); recomputeLender(L); saveLoans(Ls); }
+  }
+  expenseDesc.value=''; expenseAmount.value=''; expenseNote.value=''; if(expenseTraderNote) expenseTraderNote.value=''; if(expenseLoanNote) expenseLoanNote.value='';
+  document.getElementById('expenseIsTrader').checked=false; toggleExpenseTrader(false);
+  document.getElementById('expenseIsLoan').checked=false; toggleExpenseLoan(false);
+  renderLists();
+}
+
+// Daily
+function generateReport(){
+  const date=r_date.value||new Date().toISOString().slice(0,10); r_date.value=date;
+  const key=new Date(date).toLocaleDateString(),d=getData();
+  const s=d.sales.filter(x=>x.date===key),e=d.expenses.filter(x=>x.date===key);
+  const cs=s.filter(x=>x.type==='كاش').reduce((a,b)=>a+b.amount,0),
+        bs=s.filter(x=>x.type==='بنك').reduce((a,b)=>a+b.amount,0),
+        ce=e.filter(x=>x.type==='كاش').reduce((a,b)=>a+b.amount,0),
+        be=e.filter(x=>x.type==='بنك').reduce((a,b)=>a+b.amount,0);
+  k_cash_sales.textContent=cs; k_bank_sales.textContent=bs; k_cash_exp.textContent=ce; k_bank_exp.textContent=be; dailyKPI.style.display='grid';
+  const salesRows=s.map(x=>`<tr><td>${x.date}</td><td>${x.type}</td><td>${x.amount}</td><td>${x.note||''}</td><td class="no-print"><button class='btn btn-danger' onclick="deleteSale('${x.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد مبيعات اليوم</td></tr>';
+  const expRows=e.map(x=>`<tr><td>${x.date}</td><td>${x.type}</td><td>${x.desc}</td><td>${x.amount}</td><td>${x.note||''}</td><td class="no-print"><button class='btn btn-danger' onclick="deleteExpense('${x.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="6">لا توجد مصاريف اليوم</td></tr>';
+  dailyReport.innerHTML=`<div class="hint">المحل: <b>${labelOf(currentStore)}</b> — التاريخ: <b>${new Date(date).toLocaleDateString()}</b></div>
+  <div class="subtle">
+    <details open><summary>تفاصيل المبيعات</summary>
+      <table id="dailySales"><thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>ملاحظات</th><th class="no-print">حذف</th></tr></thead><tbody>${salesRows}</tbody></table>
+    </details>
+    <details open><summary>تفاصيل المصاريف</summary>
+      <table id="dailyExpenses"><thead><tr><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>المبلغ</th><th>ملاحظات</th><th class="no-print">حذف</th></tr></thead><tbody>${expRows}</tbody></table>
+    </details>
+  </div>`;
+}
+function exportDailyExcel(){
+  const kpi=`<table><tr><th>مبيعات كاش</th><th>مبيعات بنك</th><th>مصروفات كاش</th><th>مصروفات بنك</th></tr>
+  <tr><td>${k_cash_sales.textContent}</td><td>${k_bank_sales.textContent}</td><td>${k_cash_exp.textContent}</td><td>${k_bank_exp.textContent}</td></tr></table>`;
+  const sales=document.getElementById('dailySales')?.outerHTML||'', exps=document.getElementById('dailyExpenses')?.outerHTML||'';
+  const html=`<html><head><meta charset="utf-8"></head><body>${kpi}${sales}${exps}</body></html>`;
+  downloadExcelHTML(html,'تقرير-يومي.xls');
+}
+
+// Traders
+function refreshTraderSelects(){ const v=getTraders().list; [p_trader,pay_trader,s_trader,expenseTrader].forEach(sel=>{ if(!sel) return; sel.innerHTML=v.length? v.map(o=>`<option value="${o.id}">${o.name}</option>`).join(''):'<option value="">— لا يوجد تُجّار —</option>'; }); }
+function renderTradersList(){ const v=getTraders().list; tradersList.innerHTML=v.length? v.map(o=>`<div
